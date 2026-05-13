@@ -20,16 +20,13 @@ A Discord bot that tracks user activity and identifies inactive members who have
 2. Click "New Application"
 3. Go to "Bot" and click "Add Bot"
 4. Copy the token and add it to your `.env` file as `DISCORD_TOKEN`
-5. Under "Intents", enable:
-   - Server Members Intent
-   - Message Content Intent
-6. Go to OAuth2 → URL Generator
-7. Select scopes: `bot`
-8. Select permissions:
+5. Go to OAuth2 → URL Generator
+6. Select scopes: `bot` and `applications.commands`
+7. Select permissions:
    - Send Messages
    - Embed Links
    - Read Message History
-9. Copy the generated URL and invite your bot to your server
+8. Copy the generated URL and invite your bot to your server
 
 ### 3. Install Dependencies
 ```bash
@@ -49,19 +46,19 @@ node index.js
 
 ## Commands
 
-### `!inactive [days]`
+### `/inactive [days]`
 Shows users who haven't interacted in the specified number of days (default: 30)
 
 **Usage:**
 ```
-!inactive          # Shows users inactive for 30+ days
-!inactive 7        # Shows users inactive for 7+ days
-!inactive 60       # Shows users inactive for 60+ days
+/inactive          # Shows users inactive for 30+ days
+/inactive 7        # Shows users inactive for 7+ days
+/inactive 60       # Shows users inactive for 60+ days
 ```
 
 **Requirements:** ManageGuild permission
 
-### `!stats`
+### `/stats`
 Displays server activity statistics
 
 **Output:**
@@ -95,7 +92,7 @@ CREATE TABLE user_activity (
 
 ## Example Output
 
-**!inactive command:**
+**`/inactive` command:**
 ```
 Inactive Users (30 days)
 Found 5 inactive user(s)
@@ -109,7 +106,7 @@ Last active: 35 days ago
 Messages: 5
 ```
 
-**!stats command:**
+**`/stats` command:**
 ```
 Activity Statistics
 
@@ -130,8 +127,8 @@ Inactive (30+ days): 15
 
 **Bot doesn't respond:**
 - Ensure `DISCORD_TOKEN` is set correctly in `.env`
-- Check bot has MESSAGE_CONTENT intent enabled
-- Verify bot has necessary permissions in the server
+- Check bot has necessary permissions in the server
+- Make sure the bot has "Use Application Commands" permission
 
 **Database errors:**
 - Ensure write permissions in the bot directory
