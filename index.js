@@ -1,4 +1,7 @@
 const {
+  ActionRowBuilder,
+  ButtonBuilder,
+  ButtonStyle,
   Client,
   GatewayIntentBits,
   REST,
@@ -102,6 +105,57 @@ const commands = [
 ];
 
 const rest = new REST({ version: "10" }).setToken(process.env.DISCORD_TOKEN);
+
+const ITEMS_PER_PAGE = 10;
+
+function buildInactiveEmbed(rows, days, page) {
+  const totalPages = Math.max(1, Math.ceil(rows.length / ITEMS_PER_PAGE));
+  const pageIndex = Math.max(0, Math.min(page - 1, totalPages - 1));
+  const pageRows = rows.slice(pageIndex * ITEMS_PER_PAGE, pageIndex * ITEMS_PER_PAGE + ITEMS_PER_PAGE);
+
+  return {
+    color: 0xfa003f,
+    title: `🔥❤️ Inactive Users — ${days} days`,
+    description:
+      `🔥 Found **${rows.length}** inactive users on this server. ` +
+      `❤️ Showing page **${page} / ${totalPages}**.\n` +
+      `Use /inactive days:<number> to adjust the threshold.`,
+    fields: pageRows.map((r, index) => {
+      const last = new Date(r.last_activity);
+      const diffDays = Math.floor((Date.now() - last.getTime()) / 86400000);
+
+      return {
+        name: `${pageIndex * ITEMS_PER_PAGE + index + 1}. ${r.username ?? "Unknown"}`,
+        value:
+          `🔥 Last seen: **${last.toLocaleDateString()}**\n` +
+          `❤️ ${diffDays} day${diffDays === 1 ? "" : "s"} inactive\n` +
+          `🔥 Messages: **${r.message_count}**\n`
+      };
+    }),
+    footer: {
+      text: `Page ${page} of ${totalPages} • ${rows.length} inactive users total`,
+    },
+    timestamp: new Date(),
+  };
+}
+
+function buildInactiveButtons(days, page, totalRows) {
+  const totalPages = Math.max(1, Math.ceil(totalRows / ITEMS_PER_PAGE));
+  const row = new ActionRowBuilder().addComponents(
+    new ButtonBuilder()
+      .setCustomId(`inactive_prev_${days}_${page}`)
+      .setLabel("Previous")
+      .setStyle(ButtonStyle.Secondary)
+      .setDisabled(page <= 1),
+    new ButtonBuilder()
+      .setCustomId(`inactive_next_${days}_${page}`)
+      .setLabel("Next")
+      .setStyle(ButtonStyle.Primary)
+      .setDisabled(page >= totalPages),
+  );
+
+  return row;
+}
 
 client.once("ready", async () => {
   console.log(`✅ Bot logged in as ${client.user.tag}`);
@@ -224,6 +278,46 @@ client.once("ready", async () => {
 
 // Handle slash command interactions
 client.on("interactionCreate", async (interaction) => {
+  if (interaction.isButton()) {
+    const [prefix, direction, daysStr, pageStr] = interaction.customId.split("_");
+    if (prefix !== "inactive" || !["prev", "next"].includes(direction)) return;
+
+    const days = parseInt(daysStr, 10) || 30;
+    const currentPage = parseInt(pageStr, 10) || 1;
+    const page = direction === "next" ? currentPage + 1 : currentPage - 1;
+    const cutoffDate = new Date(Date.now() - days * 86400000);
+
+    await interaction.deferUpdate();
+
+    const rows = await new Promise((resolve, reject) => {
+      db.all(
+        `
+      SELECT user_id, username, last_activity, message_count
+      FROM user_activity
+      WHERE guild_id = ? AND last_activity < ?
+      ORDER BY last_activity ASC
+      `,
+        [interaction.guildId, cutoffDate.toISOString()],
+        (err, rows) => {
+          if (err) return reject(err);
+          resolve(rows || []);
+        },
+      );
+    });
+
+    if (rows.length === 0) {
+      return interaction.message?.edit({
+        content: `✅ No inactive users found in past ${days} days.`,
+        embeds: [],
+        components: [],
+      });
+    }
+
+    const embed = buildInactiveEmbed(rows, days, page);
+    const components = [buildInactiveButtons(days, page, rows.length)];
+    return interaction.message?.edit({ embeds: [embed], components });
+  }
+
   if (!interaction.isChatInputCommand()) return;
 
   const { commandName } = interaction;
@@ -253,36 +347,10 @@ client.on("interactionCreate", async (interaction) => {
           );
         }
 
-        const display = rows.slice(0, 25);
+        const embed = buildInactiveEmbed(rows, days, 1);
+        const components = totalTracked > ITEMS_PER_PAGE ? [buildInactiveButtons(days, 1, totalTracked)] : [];
 
-        const embed = {
-          color: 0xff69b4,
-          title: `🔥❤️ Inactive Users — ${days} days`,
-          description:
-            `🔥 Found **${totalTracked}** inactive users on this server. ` +
-            `❤️ Showing the first ${display.length}.\n` +
-            `Use /inactive days:<number> to adjust the threshold.`,
-          fields: display.map((r, index) => {
-            const last = new Date(r.last_activity);
-            const diffDays = Math.floor(
-              (Date.now() - last.getTime()) / 86400000,
-            );
-
-            return {
-              name: `${index + 1}. ${r.username ?? "Unknown"}`,
-              value:
-                `🔥 Last seen: **${last.toLocaleDateString()}**\n` +
-                `❤️ ${diffDays} day${diffDays === 1 ? "" : "s"} inactive\n` +
-                `🔥 Messages: **${r.message_count}**\n` +
-                `❤️ ID: \`${r.user_id}\``,
-            };
-          }),
-          footer:
-            rows.length > 25 ? { text: `Showing 25 of ${rows.length} inactive users` } : null,
-          timestamp: new Date(),
-        };
-
-        interaction.editReply({ embeds: [embed] });
+        interaction.editReply({ embeds: [embed], components });
       },
     );
   }
