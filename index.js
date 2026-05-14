@@ -257,24 +257,28 @@ client.on("interactionCreate", async (interaction) => {
 
         const embed = {
           color: 0xff6b6b,
-          title: `Inactive Users (${days} days)`,
-          description: `Found **${totalTracked} inactive users**`,
-          fields: display.map((r) => {
+          title: `Inactive Users — ${days} days`,
+          description:
+            `Found **${totalTracked}** inactive users on this server. ` +
+            `Showing the first ${display.length}.\n` +
+            `Use /inactive days:<number> to adjust the threshold.`,
+          fields: display.map((r, index) => {
             const last = new Date(r.last_activity);
             const diffDays = Math.floor(
               (Date.now() - last.getTime()) / 86400000,
             );
 
             return {
-              name: r.username ?? "Unknown",
+              name: `${index + 1}. ${r.username ?? "Unknown"}`,
               value:
-                `ID: ${r.user_id}\n` +
-                `Inactive: ${diffDays} days\n` +
-                `Messages: ${r.message_count}`,
+                `> Last seen: **${last.toLocaleDateString()}**\n` +
+                `> ${diffDays} day${diffDays === 1 ? "" : "s"} inactive\n` +
+                `> Messages: **${r.message_count}**\n` +
+                `> ID: \`${r.user_id}\``,
             };
           }),
           footer:
-            rows.length > 25 ? { text: `Showing 25 of ${rows.length}` } : null,
+            rows.length > 25 ? { text: `Showing 25 of ${rows.length} inactive users` } : null,
           timestamp: new Date(),
         };
 
