@@ -256,11 +256,11 @@ client.on("interactionCreate", async (interaction) => {
         const display = rows.slice(0, 25);
 
         const embed = {
-          color: 0xff6b6b,
-          title: `Inactive Users — ${days} days`,
+          color: 0xff69b4,
+          title: `🔥❤️ Inactive Users — ${days} days`,
           description:
-            `Found **${totalTracked}** inactive users on this server. ` +
-            `Showing the first ${display.length}.\n` +
+            `🔥 Found **${totalTracked}** inactive users on this server. ` +
+            `❤️ Showing the first ${display.length}.\n` +
             `Use /inactive days:<number> to adjust the threshold.`,
           fields: display.map((r, index) => {
             const last = new Date(r.last_activity);
@@ -271,10 +271,10 @@ client.on("interactionCreate", async (interaction) => {
             return {
               name: `${index + 1}. ${r.username ?? "Unknown"}`,
               value:
-                `> Last seen: **${last.toLocaleDateString()}**\n` +
-                `> ${diffDays} day${diffDays === 1 ? "" : "s"} inactive\n` +
-                `> Messages: **${r.message_count}**\n` +
-                `> ID: \`${r.user_id}\``,
+                `🔥 Last seen: **${last.toLocaleDateString()}**\n` +
+                `❤️ ${diffDays} day${diffDays === 1 ? "" : "s"} inactive\n` +
+                `🔥 Messages: **${r.message_count}**\n` +
+                `❤️ ID: \`${r.user_id}\``,
             };
           }),
           footer:
