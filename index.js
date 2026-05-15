@@ -157,6 +157,27 @@ function buildInactiveButtons(days, page, totalRows) {
   return row;
 }
 
+async function filterExistingGuildMembers(guild, rows) {
+  if (!guild) return [];
+
+  const validRows = [];
+  for (const row of rows) {
+    if (guild.members.cache.has(row.user_id)) {
+      validRows.push(row);
+      continue;
+    }
+
+    try {
+      await guild.members.fetch(row.user_id);
+      validRows.push(row);
+    } catch {
+      // Member is no longer in the guild or cannot be fetched
+    }
+  }
+
+  return validRows;
+}
+
 client.once("ready", async () => {
   console.log(`✅ Bot logged in as ${client.user.tag}`);
 
@@ -305,7 +326,9 @@ client.on("interactionCreate", async (interaction) => {
       );
     });
 
-    if (rows.length === 0) {
+    const validRows = await filterExistingGuildMembers(interaction.guild, rows);
+
+    if (validRows.length === 0) {
       return interaction.message?.edit({
         content: `✅ No inactive users found in past ${days} days.`,
         embeds: [],
@@ -313,8 +336,8 @@ client.on("interactionCreate", async (interaction) => {
       });
     }
 
-    const embed = buildInactiveEmbed(rows, days, page);
-    const components = [buildInactiveButtons(days, page, rows.length)];
+    const embed = buildInactiveEmbed(validRows, days, page);
+    const components = [buildInactiveButtons(days, page, validRows.length)];
     return interaction.message?.edit({ embeds: [embed], components });
   }
 
@@ -336,10 +359,11 @@ client.on("interactionCreate", async (interaction) => {
     ORDER BY last_activity ASC
     `,
       [interaction.guildId, cutoffDate.toISOString()],
-      (err, rows) => {
+      async (err, rows) => {
         if (err) return interaction.editReply(`DB error: ${err.message}`);
 
-        const totalTracked = rows?.length ?? 0;
+        const validRows = await filterExistingGuildMembers(interaction.guild, rows || []);
+        const totalTracked = validRows.length;
 
         if (totalTracked === 0) {
           return interaction.editReply(
@@ -347,7 +371,7 @@ client.on("interactionCreate", async (interaction) => {
           );
         }
 
-        const embed = buildInactiveEmbed(rows, days, 1);
+        const embed = buildInactiveEmbed(validRows, days, 1);
         const components = totalTracked > ITEMS_PER_PAGE ? [buildInactiveButtons(days, 1, totalTracked)] : [];
 
         interaction.editReply({ embeds: [embed], components });
